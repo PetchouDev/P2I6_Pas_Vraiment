@@ -1,0 +1,14 @@
+# Admin UI
+admin/.dist
+admin/.env
+admin/__pycache__
+admin/.vscode
+
+# Arduino 
+arduino/.dist
+arduino/.env
+arduino/__pycache__
+arduino/.vscode
+arduino/.po
+arduino/.gitignore
+
