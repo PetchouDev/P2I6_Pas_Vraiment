@@ -47,12 +47,12 @@ class Coordinates {
         Signature** coords = nullptr;
         bool left_ref_available = false;
         bool right_ref_available = false;
+        Pixy2 pixy;
 
 
     private:
         bool left_ref_found = false;
         bool idle = false;
-        Pixy2 pixy;
 
     public:
         // Méthode pour ajouter des coordonnées
@@ -136,91 +136,7 @@ class Coordinates {
 
         // acquérir les coordonnées depuis la pixy
         void acquire_signatures() {
-            // acquire objects positions from the pixy
-            int attempts = 0;
-            while (pixy.ccc.getBlocks() == 0 && attempts < 3) {
-                delay(100);
-                attempts++;
-            }
-
-            if (attempts >= 3) {
-                Serial.println("No objects detected, reinitializing...");
-                pixy.init();
-            }
-
-            //Serial.println(pixy.ccc.getBlocks());
-
-            // if at least 1 object is detected
-            if (pixy.ccc.numBlocks > 0) {
-                // print the number of detected objects
-                //Serial.print("Detected ");
-                //Serial.print(pixy.ccc.numBlocks);
-                //Serial.println(" objects");
-
-                // get the position of the reference object (yellow circle)
-                int x1 = pixy.ccc.blocks[0].m_x;
-
-                Coordinates* coords = new Coordinates();
-                bool reference_left_found = false;
-                // print the position of each object
-                for (int i = 1; i < pixy.ccc.numBlocks; i++) {
-                    if (pixy.ccc.blocks[i].m_signature == reference_left) {
-
-                        // get the position of the reference object (yellow circle)
-                        int x2 = pixy.ccc.blocks[i].m_x;
-                        int y2 = pixy.ccc.blocks[i].m_y;
-                        int id = pixy.ccc.blocks[i].m_signature;
-                        int width2 = pixy.ccc.blocks[i].m_width;
-
-                        // calculate the distance between the two reference objects
-                        int distance = x2 - x1;
-
-                        // add the coordinates of the reference object to the list
-                        Signature coord(x2, y2, id);
-                        coords->append(coord, -1, true);
-                        reference_left_found = true;
-                    } else if (pixy.ccc.blocks[i].m_signature == reference_right) {
-                        if (reference_left_found) {
-                            // get the position of the reference object (yellow circle)
-                            int x2 = pixy.ccc.blocks[i].m_x;
-                            int y2 = pixy.ccc.blocks[i].m_y;
-                            int width2 = pixy.ccc.blocks[i].m_width;
-
-                            // calculate the distance between the two reference objects
-                            int distance = x2 - x1;
-
-                            // add the coordinates of the reference object to the list
-                            int coord[3] = {x2, y2, width2};
-                            coords->append(coord, -1, false, true);
-                        }
-                    } else {
-                        // get the position of the object
-                        int x = pixy.ccc.blocks[i].m_x;
-                        int y = pixy.ccc.blocks[i].m_y;
-                        int signature = pixy.ccc.blocks[i].m_signature;
-
-                        // add the coordinates of the object to the list
-                        int coord[3] = {x, y, signature};
-                        coords->append(coord);
-                    }
-                
-                }
-
-                for (int i = 0; i < coords->size; i++) {
-                    Serial.print("Object ");
-                    Serial.print(i);
-                    Serial.print(": ");
-                    Serial.println(coords->get_str(i));
-                }
-
-            if (coords->size == 0) {
-                Serial.println("No objects found");
-            }
-            
-
-            // delete the coordinates list
-            delete coords;
-            }
+            return;
         }
 
         // Méthode pour supprimer des coordonnées à l'index spécifié
