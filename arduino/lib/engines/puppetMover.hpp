@@ -13,9 +13,9 @@ class SlavedEngine {
     
     private:
         // constantes
-        const float kp = 0.1; // coefficient proportionnel
-        const float ki = 0.1; // coefficient intégral
-        const float kd = 0.1; // coefficient dérivé
+        const float kp = 0.7; // coefficient proportionnel
+        const float ki = 0.003; // coefficient intégral
+        const float kd = 0.04; // coefficient dérivé
 
         // variables
         long unsigned int t0 = 0; // temps précédent
@@ -105,6 +105,28 @@ class SlavedEngine {
 
         float compute_command(int error, float derivative) {
             return this->kp * error + this->ki * this->integral + this->kd * derivative;
+        }
+};
+
+class ServoMotor {
+    private:
+        int pin;
+        int angle;
+    
+    public:
+        ServoMotor(int power_pin, int angle_pin) {
+            this->pin = pin;
+            this->angle = 0;
+            pinMode(pin, OUTPUT);
+        }
+
+        void set_angle(int angle) {
+            this->angle = angle;
+            analogWrite(this->pin, angle);
+        }
+
+        int get_angle() {
+            return this->angle;
         }
 };
 

@@ -1,17 +1,6 @@
 #ifndef COORDINATES_H
 #define COORDINATES_H
 
-#include <PIDLoop.h>
-#include <Pixy2.h>
-#include <Pixy2CCC.h>
-#include <Pixy2I2C.h>
-#include <Pixy2Line.h>
-#include <Pixy2SPI_SS.h>
-#include <Pixy2Video.h>
-#include <TPixy2.h>
-#include <ZumoBuzzer.h>
-#include <ZumoMotors.h>
-#include <SPI.h>
 
 const int reference_left = 0;
 const int reference_right = 1;
@@ -47,8 +36,6 @@ class Coordinates {
         Signature** coords = nullptr;
         bool left_ref_available = false;
         bool right_ref_available = false;
-        Pixy2 pixy;
-
 
     private:
         bool left_ref_found = false;
@@ -158,10 +145,7 @@ class Coordinates {
             }
         }
 
-        // (re)initialiser la pixy
-        void init() {
-            pixy.init();
-        }
+        
 
         // surcharge de la méthode remove pour supprimer les coordonnées par signature
         void remove(Signature signature) {

@@ -41,8 +41,16 @@ static int power_pin = 6;
 static int encoder_pin_1 = 2;
 static int encoder_pin_2 = 3;
 
+// servo pins
+static int right_servo_power = 5;
+static int right_servo_digital = 9;
+static int left_servo_power = 6;
+static int left_servo_digital = 10;
+
 // moteurs
 SlavedEngine* move_engine = new SlavedEngine(power_pin, encoder_pin_1, encoder_pin_2);
+ServoMotor* left_servo = new ServoMotor(left_servo_power, left_servo_digital);
+ServoMotor* right_servo = new ServoMotor(right_servo_power, right_servo_digital);
 
 void get_initial_references(Coordinates coords) {
     // On récupère les coordonnées des repères de référence
@@ -128,10 +136,12 @@ void process_coords(Coordinates coords){
     float hr_left = right_shoulder->y - right_hand->y;
     float lc_left = pow(pow(arm_length, 2) + pow(hole_shoulder, 2) - 2*hole_shoulder*hr_left, .5); //
 
-    float right_angle= (lc_right-lc_init / radius)*180/PI;
-    float left_angle= -(lc_left-lc_init / radius)*180/PI;
+    float right_angle= (lc_right-lc_init / radius)*180 / PI;
+    float left_angle= -(lc_left-lc_init / radius)*180 / PI;
 
     // TODO: asservir le moteur pour déplacer le bras
+    left_servo->set_angle(left_angle);
+    right_servo->set_angle(right_angle);
 }
 
 #endif

@@ -1,12 +1,25 @@
+#include <PIDLoop.h>
+#include <Pixy2.h>
+#include <Pixy2CCC.h>
+#include <Pixy2I2C.h>
+#include <Pixy2Line.h>
+#include <Pixy2SPI_SS.h>
+#include <Pixy2Video.h>
+#include <TPixy2.h>
+#include <ZumoBuzzer.h>
+#include <ZumoMotors.h>
+#include <SPI.h>
+
 #include <coordinates.hpp>
 #include <puppetMover.hpp>
 
 Coordinates* coords;
+Pixy2 pixy;
 
 void setup() {
     Serial.begin(19200);
     Serial.println("Starting...");
-    coords->init();
+    pixy.init();
 }
 
 void loop() {
@@ -23,7 +36,7 @@ void loop() {
 
     if (c == "reload") {
         // reset the pixy
-        coords->init();
+        pixy.init();
     } else if (c == "stop") {
         // trigger idle mode
         coords->set_idle(true);
@@ -36,45 +49,47 @@ void loop() {
     }
 
     if (!coords->is_idle()) {
+
+
         // acquire objects positions from the pixy
         int attempts = 0;
-        while (coords->pixy.ccc.getBlocks() == 0 && attempts < 3) {
+        while (pixy.ccc.getBlocks() == 0 && attempts < 3) {
             delay(100);
             attempts++;
         }
 
         if (attempts >= 3) {
             Serial.println("No objects detected, reinitializing...");
-            coords->pixy.init();
+            pixy.init();
         }
 
-        if (coords->pixy.ccc.numBlocks > 0) {
-            int x1 = coords->pixy.ccc.blocks[0].m_x;
+        if (pixy.ccc.numBlocks > 0) {
+            int x1 = pixy.ccc.blocks[0].m_x;
             bool reference_left_found = false;
 
-            for (int i = 1; i < coords->pixy.ccc.numBlocks; i++) {
-                if (coords->pixy.ccc.blocks[i].m_signature == reference_left) {
-                    int x2 = coords->pixy.ccc.blocks[i].m_x;
-                    int y2 = coords->pixy.ccc.blocks[i].m_y;
-                    int id = coords->pixy.ccc.blocks[i].m_signature;
-                    int width2 = coords->pixy.ccc.blocks[i].m_width;
+            for (int i = 1; i < pixy.ccc.numBlocks; i++) {
+                if (pixy.ccc.blocks[i].m_signature == reference_left) {
+                    int x2 = pixy.ccc.blocks[i].m_x;
+                    int y2 = pixy.ccc.blocks[i].m_y;
+                    int id = pixy.ccc.blocks[i].m_signature;
+                    int width2 = pixy.ccc.blocks[i].m_width;
                     int distance = x2 - x1;
                     Signature coord(x2, y2, id);
                     coords->append(coord, -1, true);
                     reference_left_found = true;
-                } else if (coords->pixy.ccc.blocks[i].m_signature == reference_right) {
+                } else if (pixy.ccc.blocks[i].m_signature == reference_right) {
                     if (reference_left_found) {
-                        int x2 = coords->pixy.ccc.blocks[i].m_x;
-                        int y2 = coords->pixy.ccc.blocks[i].m_y;
-                        int width2 = coords->pixy.ccc.blocks[i].m_width;
+                        int x2 = pixy.ccc.blocks[i].m_x;
+                        int y2 = pixy.ccc.blocks[i].m_y;
+                        int width2 = pixy.ccc.blocks[i].m_width;
                         int distance = x2 - x1;
                         int coord[3] = {x2, y2, width2};
                         coords->append(coord, -1, false, true);
                     }
                 } else {
-                    int x = coords->pixy.ccc.blocks[i].m_x;
-                    int y = coords->pixy.ccc.blocks[i].m_y;
-                    int signature = coords->pixy.ccc.blocks[i].m_signature;
+                    int x = pixy.ccc.blocks[i].m_x;
+                    int y = pixy.ccc.blocks[i].m_y;
+                    int signature = pixy.ccc.blocks[i].m_signature;
                     int coord[3] = {x, y, signature};
                     coords->append(coord);
                 }
