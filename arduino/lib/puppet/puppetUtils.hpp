@@ -5,7 +5,6 @@
 #include <math.h>
 
 #include <coordinates.hpp>
-# include <puppetMover.hpp>
 
 
 // Numéros des signatures pour le motion tracking (les signatures des références sont déclarées dans coordinates.hpp)
@@ -93,7 +92,7 @@ void process_coords(Coordinates coords){
     }
 
     // On met à jour la position de la marionette sur la scène
-    position_on_scene = (position - left_x) * (left_x - right_x) * scene_width;
+    position_on_scene = (position - left_x) * (left_x - right_x) * scene_width; // position = x% de la scène * largeur de la scène
 
     // TODO: asservir le moteur pour déplacer la marionette
     move_engine->set_destination(position_on_scene); // on déplace la marionette à la position calculée
@@ -101,7 +100,7 @@ void process_coords(Coordinates coords){
 
 
     // calculer l'angle du bras
-    // si le bonhomme est de face
+    /* // si le bonhomme est de face
     if (left_shoulder != nullptr && right_shoulder != nullptr && right_hand != nullptr) {
         // on calcule l'angle du bras
         int dx = abs(left_shoulder->x - right_shoulder->x) * 1.2; // on approxime la longueur du bras comme étant 1.2 fois la distance entre les épaules
@@ -128,7 +127,7 @@ void process_coords(Coordinates coords){
         // on calcule l'angle (en degrés)
         arm_angle = atan(dy / dx) * 180 / PI;
     }
-    
+     */
     
     float hr_right = (right_shoulder->y - right_hand->y); // hauteur relative de la main droite par rapport à l'épaule droite
     float lc_right = pow(pow(arm_length, 2) + pow(hole_shoulder, 2) - 2*hole_shoulder*hr_right, .5); // longueur de corde nécessaire pour atteindre la main droite
