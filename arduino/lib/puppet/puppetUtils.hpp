@@ -1,10 +1,9 @@
 // Path: lib/puppet/puppetUtils.h
-#ifndef PUPPETUTILS_H
-#define PUPPETUTILS_H
+#ifndef PUPPETUTILS_H_INCLUDED
+#define PUPPETUTILS_H_INCLUDED
 
+// importer la librairie math pour uitliser les fonctions trigonométriques et les puissances et PI
 #include <math.h>
-
-#include <coordinates.hpp>
 
 
 // Numéros des signatures pour le motion tracking (les signatures des références sont déclarées dans coordinates.hpp)
@@ -21,9 +20,6 @@ const static int scene_width = 320; //mm
 const int hole_shoulder = 50;
 const int arm_length = 61;
 const float radius = 26.25;
-const int hole_shoulder = 50;
-const int arm_length = 61;
-
 
 // variables de mouvement
 int arm_angle = 0; // angle du bras en degrés
@@ -31,7 +27,7 @@ int position = 0; // position de la marionette sur l'image
 int position_on_scene = scene_width / 2; // position de la marionette sur la scène
 float lc_init= pow(pow(hole_shoulder, 2) + pow(arm_length, 2), .5); // angle initial du bras
 
-
+// coordonnées des repères de référence
 int left_x = 0;
 int right_x = 0;
 
@@ -47,20 +43,25 @@ static int left_servo_power = 6;
 static int left_servo_digital = 10;
 
 // moteurs
-SlavedEngine* move_engine = new SlavedEngine(power_pin, encoder_pin_1, encoder_pin_2);
-ServoMotor* left_servo = new ServoMotor(left_servo_power, left_servo_digital);
-ServoMotor* right_servo = new ServoMotor(right_servo_power, right_servo_digital);
+SlavedEngine* move_engine = new SlavedEngine(power_pin, encoder_pin_1, encoder_pin_2); // moteur pour déplacer la marionette sur la scène
+ServoMotor* left_servo = new ServoMotor(left_servo_power, left_servo_digital);        // moteur pour déplacer le bras gauche
+ServoMotor* right_servo = new ServoMotor(right_servo_power, right_servo_digital);    // moteur pour déplacer le bras droit
 
 void get_initial_references(Coordinates coords) {
+
     // On récupère les coordonnées des repères de référence
     while (left_x == 0 || right_x == 0) {
-        Signature* left_ref = coords.get_by_id(reference_left);
-        Signature* right_ref = coords.get_by_id(reference_right);
-        if (left_ref != nullptr) {
-            left_x = left_ref->x;
+
+        // vérifier si les références sont disponibles
+        if (coords.left_ref_available) {
+
+            // on récupère les coordonnées de la référence gauche
+            left_x = coords.get_by_id(reference_left)->x;
         }
-        if (right_ref != nullptr) {
-            right_x = right_ref->x;
+        if (coords.right_ref_available) {
+
+            // on récupère les coordonnées de la référence droite
+            right_x = coords.get_by_id(reference_right)->x;
         }
     }
 }
@@ -83,62 +84,44 @@ void process_coords(Coordinates coords){
 
     // calcul de la position de la marionette si c'est possible
     if (left_shoulder != nullptr && right_shoulder != nullptr) {
-        // On calcule la position de la marionet
+
+        // Si les deux épaules sont détectées, on place la marionette au milieu (moyenne)
         position = (left_shoulder->x + right_shoulder->x) / 2;
+
+    // Si une seule épaule est détectée, on place la marionette à la position de l'épaule
     } else if (left_shoulder != nullptr) {
+
         position = left_shoulder->x;
+
     } else if (right_shoulder != nullptr) {
+
         position = right_shoulder->x;
+
     }
 
     // On met à jour la position de la marionette sur la scène
     position_on_scene = (position - left_x) * (left_x - right_x) * scene_width; // position = x% de la scène * largeur de la scène
 
-    // TODO: asservir le moteur pour déplacer la marionette
-    move_engine->set_destination(position_on_scene); // on déplace la marionette à la position calculée
-    move_engine->run(); // on fait tourner le moteur
+    // envoyer la position de la marionette au moteur
+    move_engine->set_destination(position_on_scene);
 
+    // asservir le moteur pour déplacer la marionette
+    move_engine->run();
 
-    // calculer l'angle du bras
-    /* // si le bonhomme est de face
-    if (left_shoulder != nullptr && right_shoulder != nullptr && right_hand != nullptr) {
-        // on calcule l'angle du bras
-        int dx = abs(left_shoulder->x - right_shoulder->x) * 1.2; // on approxime la longueur du bras comme étant 1.2 fois la distance entre les épaules
-        int dy = left_shoulder->y - right_hand->y;
-
-        // on calcule l'angle (en degrés)
-        arm_angle = atan(dy / dx) * 180 / PI;
-
-    } else if (left_shoulder != nullptr && right_hand != nullptr) {
-
-        // on calcule l'angle du bras
-        int dx = abs(left_shoulder->x - right_hand->x);
-        int dy = abs(left_shoulder->y - right_hand->y);
-
-        // on calcule l'angle (en degrés)
-        arm_angle = atan(dy / dx) * 180 / PI;
-
-    } else if (right_shoulder != nullptr && right_hand != nullptr) {
-        
-        // on calcule l'angle du bras
-        int dx = abs(right_shoulder->x - right_hand->x);
-        int dy = abs(right_shoulder->y - right_hand->y);
-
-        // on calcule l'angle (en degrés)
-        arm_angle = atan(dy / dx) * 180 / PI;
-    }
-     */
-    
+    // Mouvement des bras
+    // calcul de la longueur de corde nécessaire pour atteindre la main droite
     float hr_right = (right_shoulder->y - right_hand->y); // hauteur relative de la main droite par rapport à l'épaule droite
     float lc_right = pow(pow(arm_length, 2) + pow(hole_shoulder, 2) - 2*hole_shoulder*hr_right, .5); // longueur de corde nécessaire pour atteindre la main droite
 
+    // calcul de la longueur de corde nécessaire pour atteindre la main gauche
     float hr_left = right_shoulder->y - right_hand->y;
     float lc_left = pow(pow(arm_length, 2) + pow(hole_shoulder, 2) - 2*hole_shoulder*hr_left, .5); //
 
-    float right_angle= (lc_right-lc_init / radius)*180 / PI;
+    // calcul des angles nécessaires pour les servos
+    float right_angle = (lc_right-lc_init / radius)*180 / PI;
     float left_angle= -(lc_left-lc_init / radius)*180 / PI;
 
-    // TODO: asservir le moteur pour déplacer le bras
+    // envoyer les angles aux servos
     left_servo->set_angle(left_angle);
     right_servo->set_angle(right_angle);
 }

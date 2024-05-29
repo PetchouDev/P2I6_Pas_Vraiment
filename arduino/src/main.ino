@@ -1,3 +1,4 @@
+// imports pour la Pixy
 #include <PIDLoop.h>
 #include <Pixy2.h>
 #include <Pixy2CCC.h>
@@ -10,106 +11,101 @@
 #include <ZumoMotors.h>
 #include <SPI.h>
 
+// librairies du projet (coordinates pour stocker les signatures, puppetUtils pour asservir les moteurs et piloter les servos)
 #include <coordinates.hpp>
-#include <puppetMover.hpp>
+# include <puppetMover.hpp>
+#include <puppetUtils.hpp>
 
-Coordinates* coords;
-Pixy2 pixy;
+// déclaration des variables
+Coordinates* coords; // stocker les coordonnées des objets détectés
+Pixy2 pixy;         // déclaration de la caméra Pixy
+bool idle = false; // état de l'acquisition des coordonnées
+bool initialized = false; // état de l'initialisation des références
 
+
+// Au démarrage, on initialise la communication série et la caméra Pixy
 void setup() {
     Serial.begin(19200);
-    Serial.println("Starting...");
     pixy.init();
 }
 
 void loop() {
-    // read data over the Serial port
-    String c = "";
+    // Lecture des commandes depuis le port série
+    String c = ""; // déclaration d'une chaine de caractères pour stocker les commandes
 
-    // if data is available
+    // Si des données sont disponibles sur le port série
     if (Serial.available() > 0) {
-        // read the data
+        // Lire les données
         c = Serial.readString();
+        // Supprimer les espaces et les retours à la ligne
         c.trim();
+        // Afficher les commandes reçues
         Serial.println(">>> " + c);
     }
 
     if (c == "reload") {
-        // reset the pixy
+        // reinitialize la pixy
         pixy.init();
     } else if (c == "stop") {
-        // trigger idle mode
-        coords->set_idle(true);
+        // activer le mode idle (mise en pause de l'acquisition des coordonnées)
+        idle = true;
     } else if (c == "start") {
-        // trigger normal mode
-        coords->set_idle(false);
+        // désactiver le mode idle (reprise de l'acquisition des coordonnées)
+        idle = false;
     } else if (c == "state") {
-        // exit the program
-        Serial.println("Idle: " + (String)coords->is_idle());
+        // afficher l'état de l'acquisition des coordonnées
+        Serial.println("Idle: " + (String)idle);
     }
 
-    if (!coords->is_idle()) {
+    // Si le mode idle est désactivé, on acquiert les coordonnées des objets détectés
+    if (!idle) {
 
+        // créer une instance de la classe Coordinates pour stocker les coordonnées des objets détectés et l'assigner au pointeur coords
+        coords = new Coordinates();
 
-        // acquire objects positions from the pixy
+        if (!initialized) {
+            // récupérer les coordonnées des repères de référence
+            get_initial_references(*coords);
+            initialized = true;
+        }
+
+        // nombre de tentatives pour détecter des objets
         int attempts = 0;
+
+        // tant qu'aucun objet n'est détecté et que le nombre de tentatives est inférieur à 3, on réessaie de détecter des objets
         while (pixy.ccc.getBlocks() == 0 && attempts < 3) {
+            // attendre 100ms avant de réessayer
             delay(100);
+
+            // incrémenter le nombre de tentatives
             attempts++;
         }
 
-        // if no objects are detected, reinitialize the pixy
+        // si le nombre de tentatives est supérieur ou égal à 3, réinitialiser la caméra Pixy
         if (attempts >= 3) {
             Serial.println("No objects detected, reinitializing...");
             pixy.init();
         }
 
-        // if objects are detected, process them
+        // si des objets sont détectés, les traiter
         if (pixy.ccc.numBlocks > 0) {
-            // for each object detected, process it
+
+            // parcourir les objets détectés
             for (int i = 1; i < pixy.ccc.numBlocks; i++) {
-                // if the object is the left reference, store its position
-                if (pixy.ccc.blocks[i].m_signature == reference_left) {
-                    // store the position of the left reference (x, y, id)
-                    int x2 = pixy.ccc.blocks[i].m_x;
-                    int y2 = pixy.ccc.blocks[i].m_y;
-                    int id = pixy.ccc.blocks[i].m_signature;
 
-                    // create a new Signature object
-                    Signature coord(x2, y2, id);
+                // récupérer les coordonnées de l'objet
+                int x = pixy.ccc.blocks[i].m_x;
+                int y = pixy.ccc.blocks[i].m_y;
+                int id = pixy.ccc.blocks[i].m_signature;
 
-                    // append the object to the list of coordinates
-                    coords->append(coord, -1, true);
+                // créer une instance de la classe Signature pour stocker les coordonnées de l'objet
+                Signature coord(x, y, id);
 
-                // if the object is the right reference, store its position
-                } else if (pixy.ccc.blocks[i].m_signature == reference_right) {
-                    // store the position of the right reference (x, y, id)
-                    int x2 = pixy.ccc.blocks[i].m_x;
-                    int y2 = pixy.ccc.blocks[i].m_y;
-                    int id = pixy.ccc.blocks[i].m_signature;
-
-                    // create a new Signature object
-                    Signature coord(x2, y2, id);
-
-                    // append the object to the list of coordinates
-                    coords->append(coord, -1, false, true);
-
-                // if the object is not a reference, store its position
-                } else {
-                    // store the position of the object (x, y, id)
-                    int x = pixy.ccc.blocks[i].m_x;
-                    int y = pixy.ccc.blocks[i].m_y;
-                    int signature = pixy.ccc.blocks[i].m_signature;
-
-                    // create a new Signature object
-                    Signature coord(x, y, signature);
-
-                    // append the object to the list of coordinates
-                    coords->append(coord);
-                }
+                // ajouter les coordonnées de l'objet à l'instance de la classe Coordinates et indiquer qu'il ne s'agit pas d'une référence
+                coords->append(coord, -1, id == reference_left, id == reference_right); // si une des références est trouvée, elle est prioritaire sur l'index spécifiée
             }
 
-            // send the coordinates to the serial port
+            // afficher les coordonnées des objets détectés
             for (int i = 0; i < coords->size; i++) {
                 Serial.print("Object ");
                 Serial.print(i);
@@ -117,16 +113,21 @@ void loop() {
                 Serial.println(coords->get_str(i));
             }
 
-            // if no objects are detected, print a message
+            // si aucun objet n'est détecté, afficher un message
             if (coords->size == 0) {
                 Serial.println("No objects found");
             }
+
+            // traiter les coordonnées des objets détectés
+            process_coords(*coords);
         }
-        // delete the signatures stored to avoid memory leaks, then delete the coords object and create a new one
+        // supprimer les signatures de la mémoire pour éviter les fuites de mémoire
         coords->clear();
+
+        // supprimer la référence de l'objet coords (à nouveau pour éviter les fuites de mémoire)
         delete coords;
-        coords = new Coordinates();
-        // wait for 100ms
+
+        // attendre 100ms avant de réessayer de détecter des objets
         delay(100);
     }
 }
