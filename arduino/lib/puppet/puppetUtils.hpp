@@ -1,9 +1,14 @@
 // Path: lib/puppet/puppetUtils.h
-#ifndef PUPPETUTILS_H_INCLUDED
-#define PUPPETUTILS_H_INCLUDED
+#ifndef PUPPETUTILS_H_INCLUDED // si la librairie n'est pas incluse
+#define PUPPETUTILS_H_INCLUDED  // inclure la librairie (_INCLUDED permet d'importer les variables et fonctions de la librairie)
 
 // importer la librairie math pour uitliser les fonctions trigonométriques et les puissances et PI
 #include <math.h>
+
+#if defined(__INTELLISENSE__) // si l'IDE est en mode Intellisense (imports pris en compte par l'aide à la saisie)
+#include <..\engines\puppetMover.hpp> // importer les classes des moteurs
+#include <..\utils\coordinates.hpp> // importer les classes de gestion des coordonnées
+#endif
 
 
 // Numéros des signatures pour le motion tracking (les signatures des références sont déclarées dans coordinates.hpp)
@@ -32,20 +37,19 @@ int left_x = 0;
 int right_x = 0;
 
 // DC motor pins
-static int power_pin = 6;
 static int encoder_pin_1 = 2;
 static int encoder_pin_2 = 3;
+static int direction_pin = 4;
+static int power_pin = 5;
 
 // servo pins
-static int right_servo_power = 5;
-static int right_servo_digital = 9;
-static int left_servo_power = 6;
-static int left_servo_digital = 10;
+static int right_servo_pin = 9;
+static int left_servo_pin = 10;
 
 // moteurs
-SlavedEngine* move_engine = new SlavedEngine(power_pin, encoder_pin_1, encoder_pin_2); // moteur pour déplacer la marionette sur la scène
-ServoMotor* left_servo = new ServoMotor(left_servo_power, left_servo_digital);        // moteur pour déplacer le bras gauche
-ServoMotor* right_servo = new ServoMotor(right_servo_power, right_servo_digital);    // moteur pour déplacer le bras droit
+SlavedEngine* move_engine = new SlavedEngine(power_pin, direction_pin, encoder_pin_1, encoder_pin_2); // moteur pour déplacer la marionette sur la scène
+ServoMotor* left_servo = new ServoMotor(left_servo_pin);        // moteur pour déplacer le bras gauche
+ServoMotor* right_servo = new ServoMotor(right_servo_pin);    // moteur pour déplacer le bras droit
 
 void get_initial_references(Coordinates coords) {
 

@@ -1,5 +1,9 @@
-#ifndef COORDINATES_H
-#define COORDINATES_H 
+#ifndef COORDINATES_H // si la librairie n'est pas incluse
+#define COORDINATES_H // inclure la librairie
+
+#if defined(__INTELLISENSE__) // si l'IDE est en mode Intellisense (imports pris en compte par l'aide à la saisie)
+#include <Arduino.h> // importer la librairie Arduino pour la classe String
+#endif
 
 // numéro de signature pour les références
 const int reference_left = 0;

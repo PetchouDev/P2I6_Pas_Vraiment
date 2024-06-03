@@ -13,7 +13,7 @@
 
 // librairies du projet (coordinates pour stocker les signatures, puppetUtils pour asservir les moteurs et piloter les servos)
 #include <coordinates.hpp>
-# include <puppetMover.hpp>
+#include <puppetMover.hpp>
 #include <puppetUtils.hpp>
 
 // déclaration des variables

@@ -4,6 +4,7 @@
 #include <Encoder.h> 
 #include <Servo.h> 
 
+// Classe pour asservir un moteur EMG30
 class SlavedEngine {
     protected:
         int destination = 0; // angle d'asservissement
@@ -30,12 +31,15 @@ class SlavedEngine {
 
         // paramètres du moteur
         int power_pin; // pin de commande du moteur
+        int direction_pin; // pin de direction du moteur
+
         int encoder_pin_1; // pin 1 du codeur
         int encoder_pin_2; // pin 2 du codeur
+
         Encoder* encoder; // pointeur vers le codeur
 
     public:
-        SlavedEngine(int power_pin, int encoder_pin_1, int encoder_pin_2, int error_threshold = 3, int pas = 0.1) {
+        SlavedEngine(int power_pin, int direction_pin, int encoder_pin_1, int encoder_pin_2, int error_threshold = 3, int pas = 0.1) {
             // initialisation du codeur
             this->encoder = new Encoder(encoder_pin_1, encoder_pin_2);
 
@@ -86,56 +90,75 @@ class SlavedEngine {
                 // calcul de la commande
                 float command = this->compute_command(error, derivative);
 
-                // obentir la direction
-                bool clockwise = command > 0;
-                command = abs(command);
-
                 // appliquer la commande
-                this->set_direction(clockwise);
-                this->set_power(command);
+                this->power(command);
+
+            // si suffisamment proche de la destination, arrêter le moteur
             } else {
                 this->set_power(0);
             }
         }
 
     protected:
+        // Méthode pour régler la puissance du moteur
         void set_power(int power) {
             analogWrite(this->power_pin, power);
         }
 
+        // Méthode pour régler la direction du moteur
         void set_direction(bool clockwise) {
-            digitalWrite(this->encoder_pin_1, clockwise ? HIGH : LOW);
-            digitalWrite(this->encoder_pin_2, clockwise ? LOW : HIGH);
+            digitalWrite(this->direction_pin, clockwise);
         }
 
+        // Méthode pour convertir la commande pour le moteur
+        void power(long percentage) {
+            // obtenir la direction
+            bool clockwise = percentage > 0;
+
+            // calculer la puissance
+            int power = map(abs(percentage), 0, 100, 0, 255);
+
+            // appliquer la puissance
+            this->set_direction(clockwise);
+            this->set_power(power);
+        }
+
+        // Méthode pour calculer la commande
         float compute_command(int error, float derivative) {
             return this->kp * error + this->ki * this->integral + this->kd * derivative;
         }
 };
 
+// Classe pour contrôler un servo moteur
 class ServoMotor {
-    private:
-        int pin;
-        Servo motor;
+    public:
+        int pin; // pin du servo
+
+    protected:
+        Servo motor; // instance du servo
     
     public:
-        ServoMotor(int power_pin, int angle_pin) {
-            this->pin = pin;
-            this->motor.attach(pin);
-            pinMode(pin, OUTPUT);
+        // Constructeur
+        ServoMotor(int angle_pin) {
+            this->pin = pin; // pin du servo
+            this->motor.attach(pin); // attacher le servo au pin
+            pinMode(pin, OUTPUT); // définir le pin en sortie
         }
 
+        // Méthode pour régler l'angle du servo
         void set_angle(int angle) {
             this->motor.write(angle);
         }
 
+        // Méthode pour obtenir l'angle du servo
         int get_angle() {
             return this->motor.read();
         }
 
+        // Méthode pour réinitialiser le servo
         void reset() {
-            // remettre le servo à 0
-            this->motor.write(0);
+            // remettre le servo à 90 (position neutre)
+            this->motor.write(90);
         }
 };
 
