@@ -4,42 +4,30 @@
 #include <Encoder.h> 
 #include <Servo.h> 
 
+
+// Classe pour asservir un moteur EMG30
 // Classe pour asservir un moteur EMG30
 class SlavedEngine {
-    protected:
+    public:
         int destination = 0; // angle d'asservissement
         int position = 0; // position angulaire
-        bool running = false; // état de l'asservissement
 
-    
+        Encoder* encoder; // pointeur vers le codeur
+
     private:
         // constantes
-        const float kp = 0.7; // coefficient proportionnel
-        const float ki = 0.003; // coefficient intégral
-        const float kd = 0.04; // coefficient dérivé
-
-        // erreur autorisée
-        int error_threshold = 3; // erreur tolérée en mm
+        const float kp = 1.25; // coefficient proportionnel
 
         // paramètres physiques
-        float pas = 0.1; // en mm/tour
-
-        // variables
-        long unsigned int t0 = 0; // temps précédent
-        int previous_error = 0; // erreur précédente
-        int integral = 0; // somme des erreurs
+        const float pas = 40; // en mm/tour
 
         // paramètres du moteur
         int power_pin; // pin de commande du moteur
         int direction_pin; // pin de direction du moteur
 
-        int encoder_pin_1; // pin 1 du codeur
-        int encoder_pin_2; // pin 2 du codeur
-
-        Encoder* encoder; // pointeur vers le codeur
 
     public:
-        SlavedEngine(int power_pin, int direction_pin, int encoder_pin_1, int encoder_pin_2, int error_threshold = 3, int pas = 0.1) {
+        SlavedEngine(int power_pin, int direction_pin, int encoder_pin_1, int encoder_pin_2, float kp=4.0) {
             // initialisation du codeur
             this->encoder = new Encoder(encoder_pin_1, encoder_pin_2);
 
@@ -47,85 +35,59 @@ class SlavedEngine {
             pinMode(power_pin, OUTPUT);
             digitalWrite(power_pin, LOW);
 
+            pinMode(direction_pin, OUTPUT);
+
             // initialisation des paramètres
-            this->error_threshold = error_threshold;
             this->power_pin = power_pin;
-            this->encoder_pin_1 = encoder_pin_1;
-            this->encoder_pin_2 = encoder_pin_2;
+            this->direction_pin = direction_pin;
 
             // initialisation des variables
             this->reset();
         }
 
         void set_destination(int dest) {
-            this->destination = dest; // régler la destination sur scene en mm
-        }
-
-        void set_position(int pos) {
-            this->position = pos; // définir la valeur de la position actuelle en mm
+            // conversion de la destination de mm en degrés
+            this->destination = this->mm_to_degrees(dest); // régler la destination sur scene en mm
         }
 
         void reset() {
             this->destination = 0;
             this->position = 0;
-            this->t0 = 0;
-            this->integral = 0;
             this->encoder->write(0); // reset la position accumulée du codeur
         }
 
         void run() {
-            if (abs(this->destination - (this->position * this->pas)) > this->error_threshold) {
-                // obtenir la position via le codeur du moteur
-                this->position = this->encoder->read();
+            // obtenir la position via le codeur du moteur
+            this->position = this->encoder->read();
+            long erreur = this->position - this->destination;
+            int commande = constrain(this->kp * erreur, -255, 255);
 
-                // calcul de l'erreur
-                int error = this->destination - this->position;
+            this->power(commande);
 
-                // calcul de la dérivée
-                float derivative = (error - this->previous_error) / (millis() - this->t0);
-
-                // calcul de l'intégrale
-                this->integral += error;
-
-                // calcul de la commande
-                float command = this->compute_command(error, derivative);
-
-                // appliquer la commande
-                this->power(command);
-
-            // si suffisamment proche de la destination, arrêter le moteur
-            } else {
-                this->set_power(0);
-            }
-        }
-
-    protected:
-        // Méthode pour régler la puissance du moteur
-        void set_power(int power) {
-            analogWrite(this->power_pin, power);
-        }
-
-        // Méthode pour régler la direction du moteur
-        void set_direction(bool clockwise) {
-            digitalWrite(this->direction_pin, clockwise);
+            Serial.print(this->position);
+            Serial.print(";");
+            Serial.print(this->destination);
+            Serial.print(";");
+            Serial.print(erreur);
+            Serial.print(";");
+            Serial.println(commande);
+    
         }
 
         // Méthode pour convertir la commande pour le moteur
-        void power(long percentage) {
-            // obtenir la direction
-            bool clockwise = percentage > 0;
-
-            // calculer la puissance
-            int power = map(abs(percentage), 0, 100, 0, 255);
-
-            // appliquer la puissance
-            this->set_direction(clockwise);
-            this->set_power(power);
+        void power(int vitesse) {
+            digitalWrite(12, vitesse < 0 ? HIGH : LOW);
+            analogWrite(3, abs(vitesse));
         }
 
-        // Méthode pour calculer la commande
-        float compute_command(int error, float derivative) {
-            return this->kp * error + this->ki * this->integral + this->kd * derivative;
+        // Méthode pour convertir les disnatances en degrés
+        int mm_to_degrees(int mm) {
+            return mm * 360 / this->pas;
+        }
+
+        // Méthode pour convertir les degrés en distances
+        int degrees_to_mm(int degrees) {
+            return degrees * this->pas / 360;
         }
 };
 

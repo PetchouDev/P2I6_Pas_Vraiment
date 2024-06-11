@@ -5,11 +5,7 @@
 #include <Arduino.h> // importer la librairie Arduino pour la classe String
 #endif
 
-// numéro de signature pour les références
-const int reference_left = 0;
-const int reference_right = 1;
-
-// Classe pour les coordonnées de signature
+// Classe pour stocker les coordonnées des objets détectés
 class Signature {
 
     // Attributs publiques
@@ -52,38 +48,10 @@ class Coordinates {
 
     public:
         // Méthode pour ajouter des coordonnées
-        void append(Signature coord, int index = -1, bool left_reference = false, bool right_reference = false) {
+        void append(Signature coord, int index = -1) {
 
-            // si une référence est trouvée, elle est prioritaire sur l'index spécifié
-            // référence gauche trouvée
-            if (left_reference) {
-
-                // si la référence gauche est trouvée, ajouter les coordonnées au début du tableau
-                this->append(coord, 0);
-
-                // indiquer que la référence gauche est disponible
-                left_ref_found = true;
-                left_ref_available = true;
-
-            // référence droite trouvée
-            } else if (right_reference) {
-
-                // si la référence droite est trouvée, l'ajouter juste après la référence gauche si elle a été trouvée
-                if (left_ref_found) {
-
-                    // ajouter les coordonnées à l'index 1 (2ème position, soit après la référence gauche)
-                    this->append(coord, 1);
-
-                    // indiquer que la référence droite est disponible
-                    right_ref_available = true;
-
-                // si la référence gauche n'a pas été trouvée, ajouter les coordonnées au début du tableau
-                } else {
-                    this->append(coord, 0);
-                }
-
-            // si l'objet n'est pas une référence et l'index est -1 (défault), ajouter les coordonnées à la fin du tableau
-            } else if (index == -1) {
+            // Si l'index est -1, ajouter les coordonnées à la fin du tableau
+            if (index == -1) {
                 // Déclarer un nouveau pointeur vers  l'objet Signature
                 Signature* coordPtr = &coord;
                 
@@ -139,11 +107,6 @@ class Coordinates {
             }
         }
 
-        // acquérir les coordonnées depuis la pixy
-        void acquire_signatures() {
-            return;
-        }
-
         // Méthode pour supprimer des coordonnées à l'index spécifié
         void remove(int index) {
 
@@ -173,8 +136,6 @@ class Coordinates {
                 --size;
             }
         }
-
-        
 
         // surcharge de la méthode remove pour supprimer les coordonnées par signature
         void remove(Signature signature) {
@@ -256,8 +217,6 @@ class Coordinates {
 
             // réinitialiser la taille et les booléens de référence
             size = 0;
-            left_ref_available = false;
-            right_ref_available = false;
         }
 };
 

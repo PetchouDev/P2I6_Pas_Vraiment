@@ -20,16 +20,17 @@
 Coordinates* coords; // stocker les coordonnées des objets détectés
 Pixy2 pixy;         // déclaration de la caméra Pixy
 bool idle = false; // état de l'acquisition des coordonnées
-bool initialized = false; // état de l'initialisation des références
-
 
 // Au démarrage, on initialise la communication série et la caméra Pixy
 void setup() {
-    Serial.begin(19200);
+    Serial.begin(38400);
+
     pixy.init();
+    init_engine();
 }
 
 void loop() {
+    
     // Lecture des commandes depuis le port série
     String c = ""; // déclaration d'une chaine de caractères pour stocker les commandes
 
@@ -60,14 +61,10 @@ void loop() {
     // Si le mode idle est désactivé, on acquiert les coordonnées des objets détectés
     if (!idle) {
 
+        Serial.println(move_engine.encoder->read());
+
         // créer une instance de la classe Coordinates pour stocker les coordonnées des objets détectés et l'assigner au pointeur coords
         coords = new Coordinates();
-
-        if (!initialized) {
-            // récupérer les coordonnées des repères de référence
-            get_initial_references(*coords);
-            initialized = true;
-        }
 
         // nombre de tentatives pour détecter des objets
         int attempts = 0;
@@ -102,7 +99,7 @@ void loop() {
                 Signature coord(x, y, id);
 
                 // ajouter les coordonnées de l'objet à l'instance de la classe Coordinates et indiquer qu'il ne s'agit pas d'une référence
-                coords->append(coord, -1, id == reference_left, id == reference_right); // si une des références est trouvée, elle est prioritaire sur l'index spécifiée
+                coords->append(coord, -1); // si une des références est trouvée, elle est prioritaire sur l'index spécifiée
             }
 
             // afficher les coordonnées des objets détectés

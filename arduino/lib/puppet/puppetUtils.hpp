@@ -8,117 +8,155 @@
 #if defined(__INTELLISENSE__) // si l'IDE est en mode Intellisense (imports pris en compte par l'aide à la saisie)
 #include <..\engines\puppetMover.hpp> // importer les classes des moteurs
 #include <..\utils\coordinates.hpp> // importer les classes de gestion des coordonnées
+#include <Arduino.h> // importer la librairie Arduino pour la classe String et la fonction constrain
 #endif
 
+// variables de position
+int x; // position x du torse
+int right_x; // position x de la main droite
+int left_x; // position x de la main gauche
+
+int y; // position y du torse
+int right_y; // position y de la main droite
+int left_y; // position y de la main gauche
+
+
+// multiplicateur de position
+const static int coef_position = 100; // facteur de multiplication pour la position de la marionette
 
 // Numéros des signatures pour le motion tracking (les signatures des références sont déclarées dans coordinates.hpp)
 
-// épaules
-static int shoulder_left = 2;
-static int shoulder_right = 3;
+// torse
+static int torso = 1;
 
 // main droite
-static int hand_right = 4;
+static int right_hand = 4;
+
+// main gauche
+static int left_hand = 5;
 
 // constantes physiques
-const static int scene_width = 320; //mm
-const int hole_shoulder = 50;
+const static int scene_width = 215; //mm
+const int hole_shoulder = 80;
 const int arm_length = 61;
-const float radius = 26.25;
+const float radius = 40.0;
 
 // variables de mouvement
 int arm_angle = 0; // angle du bras en degrés
-int position = 0; // position de la marionette sur l'image
-int position_on_scene = scene_width / 2; // position de la marionette sur la scène
+int last_position = 0; // dernière position de l'utilisateur (en pixels)
+int position_on_scene = scene_width / 2; // position de la marionette sur la scène (en mm)
 float lc_init= pow(pow(hole_shoulder, 2) + pow(arm_length, 2), .5); // angle initial du bras
-
-// coordonnées des repères de référence
-int left_x = 0;
-int right_x = 0;
 
 // DC motor pins
 static int encoder_pin_1 = 2;
-static int encoder_pin_2 = 3;
-static int direction_pin = 4;
-static int power_pin = 5;
+static int encoder_pin_2 = 4;
+static int direction_pin = 12;
+static int power_pin = 3;
 
 // servo pins
-static int right_servo_pin = 9;
-static int left_servo_pin = 10;
+static int center_servo_pin = 5;
+static int right_servo_pin = 6;
+static int left_servo_pin = 7;
 
 // moteurs
-SlavedEngine* move_engine = new SlavedEngine(power_pin, direction_pin, encoder_pin_1, encoder_pin_2); // moteur pour déplacer la marionette sur la scène
-ServoMotor* left_servo = new ServoMotor(left_servo_pin);        // moteur pour déplacer le bras gauche
-ServoMotor* right_servo = new ServoMotor(right_servo_pin);    // moteur pour déplacer le bras droit
+SlavedEngine move_engine = SlavedEngine(power_pin, direction_pin, encoder_pin_1, encoder_pin_2); // moteur pour déplacer la marionette sur la scène
+ServoMotor left_servo = ServoMotor(left_servo_pin);        // moteur pour déplacer le bras gauche
+ServoMotor right_servo = ServoMotor(right_servo_pin);     // moteur pour déplacer le bras droit 
+ServoMotor center_servo = ServoMotor(center_servo_pin);  // moteur pour déplacer le torse
 
-void get_initial_references(Coordinates coords) {
+// initialisation des moteurs
+void init_engine() {
+    delay(500); // attendre 5 secondes pour laisser le temps à l'utilisateur de se positionner
 
-    // On récupère les coordonnées des repères de référence
-    while (left_x == 0 || right_x == 0) {
+    Serial.println("Initializing engine...");
 
-        // vérifier si les références sont disponibles
-        if (coords.left_ref_available) {
+    // stocker la position actuelle
+    int previous_position = move_engine.encoder->read();
 
-            // on récupère les coordonnées de la référence gauche
-            left_x = coords.get_by_id(reference_left)->x;
-        }
-        if (coords.right_ref_available) {
+    // lancer lentement le moteur vers x=x_max (la droite)
+    move_engine.power(-255);
 
-            // on récupère les coordonnées de la référence droite
-            right_x = coords.get_by_id(reference_right)->x;
-        }
+    // attendre que le moteur tape la butée (le codeur se fige)
+    delay(1000);
+    while (move_engine.encoder->read() != previous_position) {
+        move_engine.run();
+        Serial.print(move_engine.encoder->read());  
+        Serial.print(";");
+        Serial.println(previous_position);
+        delay(1000);
+        previous_position = move_engine.encoder->read();
     }
+
+    // arrêter le moteur
+    move_engine.power(0);
+
+    // réinitialiser le moteur
+    move_engine.reset();
+
+    // envoyer la marionette au centre de la scène
+    move_engine.set_destination(105);
+
+    // attendre que le moteur atteigne la destination
+    while (move_engine.encoder->read() != move_engine.mm_to_degrees(105)) {
+        move_engine.run();
+        Serial.print(move_engine.encoder->read());
+        Serial.print(";");
+        Serial.println(move_engine.mm_to_degrees(105));
+        delay(100);
+    }
+
+    Serial.println("Engine initialized");
+
+    // attendre 3 secondes pour laisser le temps à l'utilisateur de se positionner
+    delay(3000);
 }
 
 void process_coords(Coordinates coords){
     // On récupère les coordonnées des repères de référence
-    if (coords.left_ref_available) {
-        left_x = coords.get_by_id(reference_left)->x;
+    Signature* torso_sig = coords.get_by_id(torso);
+    Signature* left_hand_sig = coords.get_by_id(left_hand);
+    Signature* right_hand_sig = coords.get_by_id(right_hand);
+
+    // mise à jour des coordonnées
+    if (torso_sig != nullptr) {
+        x = torso_sig->x;
+        y = torso_sig->y;
     }
-    if (coords.right_ref_available) {
-        right_x = coords.get_by_id(reference_right)->x;
+    if (left_hand_sig != nullptr) {
+        left_x = left_hand_sig->x;
+        left_y = left_hand_sig->y;
     }
-
-    // On récupère les coordonnées des épaules
-    Signature* left_shoulder = coords.get_by_id(shoulder_left);
-    Signature* right_shoulder = coords.get_by_id(shoulder_right);
-
-    // On récupère les coordonnées de la main droite
-    Signature* right_hand = coords.get_by_id(hand_right);
-
-    // calcul de la position de la marionette si c'est possible
-    if (left_shoulder != nullptr && right_shoulder != nullptr) {
-
-        // Si les deux épaules sont détectées, on place la marionette au milieu (moyenne)
-        position = (left_shoulder->x + right_shoulder->x) / 2;
-
-    // Si une seule épaule est détectée, on place la marionette à la position de l'épaule
-    } else if (left_shoulder != nullptr) {
-
-        position = left_shoulder->x;
-
-    } else if (right_shoulder != nullptr) {
-
-        position = right_shoulder->x;
-
+    if (right_hand_sig != nullptr) {
+        right_x = right_hand_sig->x;
+        right_y = right_hand_sig->y;
     }
 
-    // On met à jour la position de la marionette sur la scène
-    position_on_scene = (position - left_x) * (left_x - right_x) * scene_width; // position = x% de la scène * largeur de la scène
+    // déplacement de l'utilisateur
+    int move = x - last_position; // déplacement de l'utilisateur
+
+    // mise à jour de la position de la marionette
+    last_position = x;
+    
+
+    // en déduire la position de la marionette
+    position_on_scene = position_on_scene + move * coef_position; // position = x% de la scène * largeur de la scène
+
+    // contraindre la position de la marionette à la scène
+    position_on_scene = constrain(position_on_scene, 0, scene_width);
 
     // envoyer la position de la marionette au moteur
-    move_engine->set_destination(position_on_scene);
+    move_engine.set_destination(position_on_scene);
 
-    // asservir le moteur pour déplacer la marionette
-    move_engine->run();
+    // calculer le signal de commande pour asservir le moteur
+    move_engine.run();
 
     // Mouvement des bras
     // calcul de la longueur de corde nécessaire pour atteindre la main droite
-    float hr_right = (right_shoulder->y - right_hand->y); // hauteur relative de la main droite par rapport à l'épaule droite
+    float hr_right = y - right_y; // hauteur relative de la main droite par rapport à l'épaule droite
     float lc_right = pow(pow(arm_length, 2) + pow(hole_shoulder, 2) - 2*hole_shoulder*hr_right, .5); // longueur de corde nécessaire pour atteindre la main droite
 
     // calcul de la longueur de corde nécessaire pour atteindre la main gauche
-    float hr_left = right_shoulder->y - right_hand->y;
+    float hr_left = y - left_y;
     float lc_left = pow(pow(arm_length, 2) + pow(hole_shoulder, 2) - 2*hole_shoulder*hr_left, .5); //
 
     // calcul des angles nécessaires pour les servos
@@ -126,8 +164,8 @@ void process_coords(Coordinates coords){
     float left_angle= -(lc_left-lc_init / radius)*180 / PI;
 
     // envoyer les angles aux servos
-    left_servo->set_angle(left_angle);
-    right_servo->set_angle(right_angle);
+    left_servo.set_angle(left_angle);
+    right_servo.set_angle(right_angle);
 }
 
 #endif
