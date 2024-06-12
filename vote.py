@@ -1,6 +1,4 @@
 import pyautogui
-from pynput import keyboard
-
 import time
 
 # initialize the bot
