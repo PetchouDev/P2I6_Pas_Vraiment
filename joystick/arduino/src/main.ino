@@ -45,16 +45,16 @@ void setup() {
 
 void loop() {
     // Déclarer des variables pour stocker des sens de mouvements (-1, 0, 1)
-    int left_x = 0;
-    int left_y = 0;
-    int right_x = 0;
-    int right_y = 0;
+    float left_x = 0;
+    float left_y = 0;
+    float right_x = 0;
+    float right_y = 0;
 
     // Lire les valeurs des joysticks (avec une tolérance de 100 autour de la valeur neutre de 512) - axes Y inversés
-    left_x = (analogRead(left_x_pin) > 612) ? .5 : (analogRead(left_x_pin) < 412) ? -.5 : 0;
-    left_y = (analogRead(left_y_pin) > 612) ? -.5 : (analogRead(left_y_pin) < 412) ? .5 : 0;
-    right_x = (analogRead(right_x_pin) > 612) ? .5 : (analogRead(right_x_pin) < 412) ? -.5 : 0;
-    right_y = (analogRead(right_y_pin) > 612) ? .5 : (analogRead(right_y_pin) < 412) ? .5 : 0;
+    left_x = (analogRead(left_x_pin) > 612) ? 1 : (analogRead(left_x_pin) < 412) ? -1 : 0;
+    left_y = (analogRead(left_y_pin) > 612) ? -1 : (analogRead(left_y_pin) < 412) ? 1 : 0;
+    right_x = (analogRead(right_x_pin) > 612) ? 1 : (analogRead(right_x_pin) < 412) ? -1 : 0;
+    right_y = (analogRead(right_y_pin) > 612) ? 1 : (analogRead(right_y_pin) < 412) ? -1 : 0;
 
     // lecture du moniteur série
     if (Serial.available() > 0) {
